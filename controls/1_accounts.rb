@@ -35,6 +35,13 @@
 
 title '1.1 Passwords'
 
+BIGIP_HOST              = input('bigip_address')
+BIGIP_PORT              = input('bigip_port')
+BIGIP_USER              = input('user')
+BIGIP_PASSWORD          = input('password')
+NAMESERVER              = input('nameserver')
+
+
 control 'cis-f5-benchmark-1.1.1' do
   title 'Ensure default password of root is not allowed (Automated)'
   desc  "To assist users in changing default password for "root" account.\n\nRationale: Using Default passwords for 'root' access could cause a compromise to the overall system security."
@@ -44,6 +51,7 @@ control 'cis-f5-benchmark-1.1.1' do
   tag level: 1
 
       #Password Strength Policy — IA-5(1)
+      #NIST SP 800-53-5 IA-5(1) Authenticator Management | Password-Based Authentication
       tag nist: ['IA-5(1)']
 
   describe 'cis-f5-benchmark-1.1.1' do
@@ -60,6 +68,8 @@ control 'cis-f5-benchmark-1.1.2' do
   tag level: 1
 
       #Password Strength Policy — IA-5(1)
+     #NIST SP 800-53-5 IA-5(1)(a) Authenticator Management | Password-Based Authentication
+
       tag nist: ['IA-5(1)']
 
   describe 'cis-f5-benchmark-1.1.2' do
@@ -69,15 +79,31 @@ end
 
 control 'cis-f5-benchmark-1.1.3' do
     title 'Configure Secure Password Policy (Manual)'
-    desc  "To assist users in changing default password for 'admin' account\n\nRationale: Using Default passwords for 'admin' access could cause a compromise to the overall system security."
+    desc  "To assist users in maintaining strong passwords, ensure that passwords are changed at appropriate intervals and new passwords to be used\n\nRationale: Having a weak or non-existent password policy will allow users to use weak or easily cracked passwords."
     impact 0.0
+
+#Impact:
+# Without proper password management the users are more likely to select weak passwords or forget complex passwords.
+# This can create security risks as these passwords make it easier for attackers to crack.
+    impact High
+
   
     tag cis: 'f5:1.1.3'
     tag level: 1
 
     #Password Strength Policy — IA-5(1)
+     #NIST SP 800-53-5 IA-5(1)(h) Authenticator Management | Password-Based Authentication    
     tag nist: ['IA-5(1)']
   
+    describe json(content: http("https://#{BIGIP_HOST}:#{BIGIP_PORT}/mgmt/tm/sys/dns",
+              auth: {user: BIGIP_USER, pass: BIGIP_PASSWORD},
+              method: 'GET',
+              ssl_verify: false).body) do
+          its('nameServers') { should cmp NAMESERVER }
+    end
+
+
+
     describe 'cis-f5-benchmark-1.1.3' do
       skip 'Not implemented'
 
