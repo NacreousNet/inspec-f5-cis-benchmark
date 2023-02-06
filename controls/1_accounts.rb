@@ -33,18 +33,57 @@
 #
 # author: Philip Hines
 
+require 'json'
+
 title '1.1 Passwords'
 
-BIGIP_HOST              = input('bigip_address')
-BIGIP_PORT              = input('bigip_port')
-BIGIP_USER              = input('user')
-BIGIP_PASSWORD          = input('password')
-NAMESERVER              = input('nameserver')
+#BIGIP_HOST              = input('bigip_address')
+#BIGIP_PORT              = input('bigip_port')
+#BIGIP_USER              = input('user')
+#BIGIP_PASSWORD          = input('password')
+#NAMESERVER              = input('nameserver')
+
+BIGIP_HOST              = '35.234.154.208'
+BIGIP_PORT              = '8443'
+BIGIP_USER              = 'admin'
+BIGIP_PASSWORD          = 'Default12345!'
+NAMESERVER              = '169.254.169.254'
+
+
+content = http("https://#{BIGIP_HOST}:#{BIGIP_PORT}/mgmt/shared/authn/login", method: :post,
+headers: { "Content-Type" => "application/json" },
+ssl_verify: false,
+ data: { username: BIGIP_USER, password: BIGIP_PASSWORD, loginProviderName: "tmos" }.to_json).body
+
+
+F5_TOKEN = JSON.parse(content)["token"]["token"]
+
+print F5_TOKEN
+
+
+#params = JSON.parse(content)
+
+
+#control "retrieve token" do
+#  describe my_token do
+   # its('token') { should eq 'hello' }
+#  end
+#end
+
+
+
+
+#TOKEN = json(content: http("https://#{BIGIP_HOST}:#{BIGIP_PORT}/mgmt/tm/sys/dns",
+
+#auth: {user: BIGIP_USER, pass: BIGIP_PASSWORD},
+#        method: 'POST',
+#       ssl_verify: false).body).token.token
+
 
 
 control 'cis-f5-benchmark-1.1.1' do
   title 'Ensure default password of root is not allowed (Automated)'
-  desc  "To assist users in changing default password for "root" account.\n\nRationale: Using Default passwords for 'root' access could cause a compromise to the overall system security."
+  desc  "To assist users in changing default password for 'root' account.\n\nRationale: Using Default passwords for 'root' access could cause a compromise to the overall system security."
   impact 0.0
 
   tag cis: 'f5:1.1.1'
@@ -53,6 +92,35 @@ control 'cis-f5-benchmark-1.1.1' do
       #Password Strength Policy — IA-5(1)
       #NIST SP 800-53-5 IA-5(1) Authenticator Management | Password-Based Authentication
       tag nist: ['IA-5(1)']
+
+      describe http("https://#{BIGIP_HOST}:#{BIGIP_PORT}/mgmt/shared/authn/login",
+          headers: {
+            'Content-Type' => 'application/json'
+          },
+          method: 'POST',
+          data: {
+            username: BIGIP_USER,
+            password: BIGIP_PASSWORD,
+            loginProviderName: 'tmos'}.to_json,
+          ssl_verify: false) do
+            its('status') { should cmp 200 }
+            #its('headers.Content-Type') { should match 'application/json' }
+          end
+
+        #  control "example" do
+        #    impact 1.0
+        #    title "Example http POST request with JSON body"
+          
+            describe http("https://#{BIGIP_HOST}:#{BIGIP_PORT}/mgmt/shared/authn/login", method: :post,
+             headers: { "Content-Type" => "application/json" },
+             ssl_verify: false,
+              data: { username: "admin", password: "Default12345!", loginProviderName: "tmos" }.to_json) do
+              its("status") { should cmp 200 }
+              its("body") { should include "token" }
+            end
+          #end
+          
+
 
   describe 'cis-f5-benchmark-1.1.1' do
     skip 'Not implemented'
@@ -85,7 +153,7 @@ control 'cis-f5-benchmark-1.1.3' do
 #Impact:
 # Without proper password management the users are more likely to select weak passwords or forget complex passwords.
 # This can create security risks as these passwords make it easier for attackers to crack.
-    impact High
+    impact 1.0 #High
 
   
     tag cis: 'f5:1.1.3'
@@ -95,12 +163,51 @@ control 'cis-f5-benchmark-1.1.3' do
      #NIST SP 800-53-5 IA-5(1)(h) Authenticator Management | Password-Based Authentication    
     tag nist: ['IA-5(1)']
   
-    describe json(content: http("https://#{BIGIP_HOST}:#{BIGIP_PORT}/mgmt/tm/sys/dns",
+  #  describe json(content: http("https://#{BIGIP_HOST}:#{BIGIP_PORT}/mgmt/tm/sys/dns",
+  #            auth: {user: BIGIP_USER, pass: BIGIP_PASSWORD},
+  #            method: 'GET',
+  #            ssl_verify: false).body) do
+  #        its('nameServers') { should cmp NAMESERVER }
+  #  end
+
+    describe json(content: http("https://#{BIGIP_HOST}:#{BIGIP_PORT}/mgmt/tm/auth/password-policy",
               auth: {user: BIGIP_USER, pass: BIGIP_PASSWORD},
               method: 'GET',
               ssl_verify: false).body) do
-          its('nameServers') { should cmp NAMESERVER }
+          its('policyEnforcement') { should cmp 'Enabled' }
+          its('minimumLength') { should cmp 6 }
+          its('requiredLowercase') { should cmp 0 }
+          its('requiredUppercase') { should cmp 0 }
+          its('requiredNumeric') { should cmp 0 }
+          its('requiredSpecial') { should cmp 0}
+          its('maxDuration') { should cmp 99999}
+          its('minDuration') { should cmp 0}
+          its('expirationWarning') { should cmp 7 }
+          its('passwordMemory') { should cmp 0}
+          its('maxLoginFailures') { should cmp 0}          
     end
+
+    describe json(content: http("https://#{BIGIP_HOST}:#{BIGIP_PORT}/mgmt/tm/auth/password-policy",
+              headers: {
+                "Content-Type" => "application/json",
+                "X-F5-Auth-Token" => F5_TOKEN
+              },
+              #auth: {user: BIGIP_USER, pass: BIGIP_PASSWORD},
+              method: 'GET',
+              ssl_verify: false).body) do
+          its('policyEnforcement') { should cmp 'Enabled' }
+          its('minimumLength') { should cmp 6 }
+          its('requiredLowercase') { should cmp 0 }
+          its('requiredUppercase') { should cmp 0 }
+          its('requiredNumeric') { should cmp 0 }
+          its('requiredSpecial') { should cmp 0}
+          its('maxDuration') { should cmp 99999}
+          its('minDuration') { should cmp 0}
+          its('expirationWarning') { should cmp 7 }
+          its('passwordMemory') { should cmp 0}
+          its('maxLoginFailures') { should cmp 0}          
+    end
+
 
 
 
