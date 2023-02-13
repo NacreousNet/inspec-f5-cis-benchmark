@@ -107,6 +107,24 @@ control 'cis-f5-benchmark-1.1.1' do
             #its('headers.Content-Type') { should match 'application/json' }
           end
 
+          describe http("https://#{BIGIP_HOST}:#{BIGIP_PORT}/mgmt/shared/authn/login",
+          headers: {
+            'Content-Type' => 'application/json'
+          },
+          method: 'POST',
+          data: {
+            username: 'root',
+            password: 'default',
+            loginProviderName: 'tmos'}.to_json,
+          ssl_verify: false) do
+            its('status') { should cmp 400 }
+            #its('headers.Content-Type') { should match 'application/json' }
+          end
+
+
+
+
+
         #  control "example" do
         #    impact 1.0
         #    title "Example http POST request with JSON body"
@@ -139,6 +157,21 @@ control 'cis-f5-benchmark-1.1.2' do
      #NIST SP 800-53-5 IA-5(1)(a) Authenticator Management | Password-Based Authentication
 
       tag nist: ['IA-5(1)']
+
+      describe http("https://#{BIGIP_HOST}:#{BIGIP_PORT}/mgmt/shared/authn/login",
+      headers: {
+        'Content-Type' => 'application/json'
+      },
+      method: 'POST',
+      data: {
+        username: 'admin',
+        password: 'admin',
+        loginProviderName: 'tmos'}.to_json,
+      ssl_verify: false) do
+        its('status') { should cmp 400 }
+        #its('headers.Content-Type') { should match 'application/json' }
+      end
+
 
   describe 'cis-f5-benchmark-1.1.2' do
     skip 'Not implemented'
